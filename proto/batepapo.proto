@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+package proto;
+
+option go_package = "/proto";
+
+service chat {
+    rpc sendMessage (stream Message) returns (stream Message);
+}
+
+message Message {
+    string name = 1;
+    string time = 2;
+    string message = 3;
+}
