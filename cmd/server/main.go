@@ -11,10 +11,15 @@ type Server struct {
 	proto.UnimplementedChatServer
 }
 
-func (service Server*) SendMessage(ctx context.Context, message *proto.Message) (*proto.Messagek)
+// Função pega do arquivo proto
+func (service *Server) SendMessage(ctx context.Context, message *proto.Message) *proto.Message {
+	println("Mensagem: ", req.Ge)
+}
 
 func main() {
+	// Criação Servidor gRPC
 	grpcServer := grpc.NewServer()
 
-	proto.RegisterChatServer(grpcServer, $Server)
+	// Registro do serviço do arquivo .proto
+	proto.RegisterChatServer(grpcServer, &Server)
 }
