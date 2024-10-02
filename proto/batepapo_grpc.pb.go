@@ -26,7 +26,7 @@ const (
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type ChatClient interface {
-	SendMessage(ctx context.Context, opts ...grpc.CallOption) (grpc.BidiStreamingClient[Message, Void], error)
+	SendMessage(ctx context.Context, in *Message, opts ...grpc.CallOption) (*Void, error)
 }
 
 type chatClient struct {
@@ -37,24 +37,21 @@ func NewChatClient(cc grpc.ClientConnInterface) ChatClient {
 	return &chatClient{cc}
 }
 
-func (c *chatClient) SendMessage(ctx context.Context, opts ...grpc.CallOption) (grpc.BidiStreamingClient[Message, Void], error) {
+func (c *chatClient) SendMessage(ctx context.Context, in *Message, opts ...grpc.CallOption) (*Void, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	stream, err := c.cc.NewStream(ctx, &Chat_ServiceDesc.Streams[0], Chat_SendMessage_FullMethodName, cOpts...)
+	out := new(Void)
+	err := c.cc.Invoke(ctx, Chat_SendMessage_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
-	x := &grpc.GenericClientStream[Message, Void]{ClientStream: stream}
-	return x, nil
+	return out, nil
 }
-
-// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
-type Chat_SendMessageClient = grpc.BidiStreamingClient[Message, Void]
 
 // ChatServer is the server API for Chat service.
 // All implementations must embed UnimplementedChatServer
 // for forward compatibility.
 type ChatServer interface {
-	SendMessage(grpc.BidiStreamingServer[Message, Void]) error
+	SendMessage(context.Context, *Message) (*Void, error)
 	mustEmbedUnimplementedChatServer()
 }
 
@@ -65,8 +62,8 @@ type ChatServer interface {
 // pointer dereference when methods are called.
 type UnimplementedChatServer struct{}
 
-func (UnimplementedChatServer) SendMessage(grpc.BidiStreamingServer[Message, Void]) error {
-	return status.Errorf(codes.Unimplemented, "method SendMessage not implemented")
+func (UnimplementedChatServer) SendMessage(context.Context, *Message) (*Void, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SendMessage not implemented")
 }
 func (UnimplementedChatServer) mustEmbedUnimplementedChatServer() {}
 func (UnimplementedChatServer) testEmbeddedByValue()              {}
@@ -89,12 +86,23 @@ func RegisterChatServer(s grpc.ServiceRegistrar, srv ChatServer) {
 	s.RegisterService(&Chat_ServiceDesc, srv)
 }
 
-func _Chat_SendMessage_Handler(srv interface{}, stream grpc.ServerStream) error {
-	return srv.(ChatServer).SendMessage(&grpc.GenericServerStream[Message, Void]{ServerStream: stream})
+func _Chat_SendMessage_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(Message)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ChatServer).SendMessage(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Chat_SendMessage_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ChatServer).SendMessage(ctx, req.(*Message))
+	}
+	return interceptor(ctx, in, info, handler)
 }
-
-// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
-type Chat_SendMessageServer = grpc.BidiStreamingServer[Message, Void]
 
 // Chat_ServiceDesc is the grpc.ServiceDesc for Chat service.
 // It's only intended for direct use with grpc.RegisterService,
@@ -102,14 +110,12 @@ type Chat_SendMessageServer = grpc.BidiStreamingServer[Message, Void]
 var Chat_ServiceDesc = grpc.ServiceDesc{
 	ServiceName: "proto.chat",
 	HandlerType: (*ChatServer)(nil),
-	Methods:     []grpc.MethodDesc{},
-	Streams: []grpc.StreamDesc{
+	Methods: []grpc.MethodDesc{
 		{
-			StreamName:    "sendMessage",
-			Handler:       _Chat_SendMessage_Handler,
-			ServerStreams: true,
-			ClientStreams: true,
+			MethodName: "sendMessage",
+			Handler:    _Chat_SendMessage_Handler,
 		},
 	},
+	Streams:  []grpc.StreamDesc{},
 	Metadata: "proto/batepapo.proto",
 }

@@ -16,6 +16,8 @@ type Server struct {
 
 // Função sendMessage arquivo .proto
 func (service *Server) SendMessage(ctx context.Context, message *proto.Message) (*proto.Void, error) {
+	println(message.Name, " - ", message.Time, "\n\t", message.Message)
+
 	return &proto.Void{}, nil
 }
 
