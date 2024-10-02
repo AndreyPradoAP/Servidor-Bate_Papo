@@ -5,7 +5,7 @@ package proto;
 option go_package = "/proto";
 
 service chat {
-    rpc sendMessage (stream Message) returns (stream void);
+    rpc sendMessage (stream Message) returns (stream Void);
 }
 
 message Message {
@@ -14,4 +14,4 @@ message Message {
     string message = 3;
 }
 
-message void { }
+message Void { }
