@@ -19,12 +19,16 @@ func main() {
 
 	client := proto.NewChatClient(conn)
 
+	userScreen(client)
+
+	// Mensagem do client
 	req := &proto.Message{
 		Name:    "Andrey",
 		Time:    "10h30",
 		Message: "Comer tatu é bom",
 	}
 
+	// Execução função gRPC
 	res, err := client.SendMessage(context.Background(), req)
 	if err != nil {
 		log.Fatal(err)
