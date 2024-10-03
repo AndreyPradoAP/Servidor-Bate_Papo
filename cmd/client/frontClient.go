@@ -21,7 +21,9 @@ func userScreen(client proto.ChatClient) {
 
 	nome := scanner.Text()
 
-	fmt.Printf("\n--- O Chat será iniciado. Digite a mensagem requerida, e aperte ENTER pra enviar. Para sair, basta digitar exit() ---\n")
+	fmt.Printf("\n--- O Chat está conectando. Digite a mensagem requerida, e aperte ENTER pra enviar. Para sair, basta digitar exit() ---\n")
+
+	inicarBroadcast(client)
 
 	var texto string
 
@@ -54,4 +56,26 @@ func userScreen(client proto.ChatClient) {
 			log.Fatal(err)
 		}
 	}
+}
+
+func inicarBroadcast(client proto.ChatClient) {
+	mensagensStream, err := client.ReceiveMessage(context.Background(), &proto.Void{})
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	go func() {
+		for {
+			msg, err := mensagensStream.Recv()
+
+			if err != nil {
+				log.Fatal(err)
+				return
+			}
+			if msg.Message != "" {
+				fmt.Printf("%s -> %s\n", msg.Name, msg.Message)
+			}
+		}
+	}()
 }
