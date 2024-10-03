@@ -2,7 +2,6 @@ package main
 
 import (
 	"Servidor-Bate_Papo/proto"
-	"context"
 	"log"
 
 	"google.golang.org/grpc"
@@ -21,7 +20,7 @@ func main() {
 
 	userScreen(client)
 
-	// Mensagem do client
+	/*// Mensagem do client
 	req := &proto.Message{
 		Name:    "Andrey",
 		Time:    "10h30",
@@ -34,5 +33,5 @@ func main() {
 		log.Fatal(err)
 	}
 
-	log.Println(res)
+	log.Println(res)*/
 }

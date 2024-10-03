@@ -19,7 +19,8 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	Chat_SendMessage_FullMethodName = "/proto.chat/sendMessage"
+	Chat_SendMessage_FullMethodName    = "/proto.chat/sendMessage"
+	Chat_ReceiveMessage_FullMethodName = "/proto.chat/receiveMessage"
 )
 
 // ChatClient is the client API for Chat service.
@@ -27,6 +28,7 @@ const (
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type ChatClient interface {
 	SendMessage(ctx context.Context, in *Message, opts ...grpc.CallOption) (*Void, error)
+	ReceiveMessage(ctx context.Context, in *Void, opts ...grpc.CallOption) (grpc.ServerStreamingClient[Message], error)
 }
 
 type chatClient struct {
@@ -47,11 +49,31 @@ func (c *chatClient) SendMessage(ctx context.Context, in *Message, opts ...grpc.
 	return out, nil
 }
 
+func (c *chatClient) ReceiveMessage(ctx context.Context, in *Void, opts ...grpc.CallOption) (grpc.ServerStreamingClient[Message], error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	stream, err := c.cc.NewStream(ctx, &Chat_ServiceDesc.Streams[0], Chat_ReceiveMessage_FullMethodName, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &grpc.GenericClientStream[Void, Message]{ClientStream: stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type Chat_ReceiveMessageClient = grpc.ServerStreamingClient[Message]
+
 // ChatServer is the server API for Chat service.
 // All implementations must embed UnimplementedChatServer
 // for forward compatibility.
 type ChatServer interface {
 	SendMessage(context.Context, *Message) (*Void, error)
+	ReceiveMessage(*Void, grpc.ServerStreamingServer[Message]) error
 	mustEmbedUnimplementedChatServer()
 }
 
@@ -64,6 +86,9 @@ type UnimplementedChatServer struct{}
 
 func (UnimplementedChatServer) SendMessage(context.Context, *Message) (*Void, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SendMessage not implemented")
+}
+func (UnimplementedChatServer) ReceiveMessage(*Void, grpc.ServerStreamingServer[Message]) error {
+	return status.Errorf(codes.Unimplemented, "method ReceiveMessage not implemented")
 }
 func (UnimplementedChatServer) mustEmbedUnimplementedChatServer() {}
 func (UnimplementedChatServer) testEmbeddedByValue()              {}
@@ -104,6 +129,17 @@ func _Chat_SendMessage_Handler(srv interface{}, ctx context.Context, dec func(in
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Chat_ReceiveMessage_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(Void)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
+	}
+	return srv.(ChatServer).ReceiveMessage(m, &grpc.GenericServerStream[Void, Message]{ServerStream: stream})
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type Chat_ReceiveMessageServer = grpc.ServerStreamingServer[Message]
+
 // Chat_ServiceDesc is the grpc.ServiceDesc for Chat service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -116,6 +152,12 @@ var Chat_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _Chat_SendMessage_Handler,
 		},
 	},
-	Streams:  []grpc.StreamDesc{},
+	Streams: []grpc.StreamDesc{
+		{
+			StreamName:    "receiveMessage",
+			Handler:       _Chat_ReceiveMessage_Handler,
+			ServerStreams: true,
+		},
+	},
 	Metadata: "proto/batepapo.proto",
 }

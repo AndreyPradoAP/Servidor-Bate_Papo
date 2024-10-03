@@ -6,6 +6,7 @@ option go_package = "/proto";
 
 service chat {
     rpc sendMessage (Message) returns (Void);
+    rpc receiveMessage (Void) returns (stream Message);
 }
 
 message Message {
